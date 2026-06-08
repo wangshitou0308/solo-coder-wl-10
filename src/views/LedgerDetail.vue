@@ -48,10 +48,10 @@
         <el-table-column prop="receiptNumber" label="收据编号" width="180" />
         <el-table-column prop="paymentReason" label="收款事由" min-width="140" show-overflow-tooltip />
         <el-table-column label="类型" width="80">
-          <template #default="{ row }">{{ PaymentTypeMap[row.paymentType] }}</template>
+          <template #default="{ row }">{{ PaymentTypeMap[row.paymentType as PaymentType] }}</template>
         </el-table-column>
         <el-table-column label="方式" width="70">
-          <template #default="{ row }">{{ PaymentMethodMap[row.paymentMethod] }}</template>
+          <template #default="{ row }">{{ PaymentMethodMap[row.paymentMethod as PaymentMethod] }}</template>
         </el-table-column>
         <el-table-column prop="amount" label="金额" width="120" align="right">
           <template #default="{ row }">{{ row.amount.toLocaleString() }}</template>
@@ -75,7 +75,7 @@ import { useProjectStore } from '@/stores/project'
 import { useCustomerStore } from '@/stores/customer'
 import { useReceiptStore } from '@/stores/receipt'
 import { useAuthStore } from '@/stores/auth'
-import type { RoomStatus } from '@/types'
+import type { RoomStatus, PaymentType, PaymentMethod } from '@/types'
 import { RoomStatusMap, PaymentTypeMap, PaymentMethodMap } from '@/types'
 import { ElMessage } from 'element-plus'
 import html2canvas from 'html2canvas'

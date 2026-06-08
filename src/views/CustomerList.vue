@@ -152,10 +152,10 @@ const filteredCustomers = computed(() => {
 const availableRooms = computed(() => {
   if (!form.projectId) return []
   const reservedRoomIds = customerStore.customers
-    .filter(c => c.projectId === form.projectId && c.id !== editingId.value)
+    .filter(c => c.id !== editingId.value)
     .map(c => c.roomId)
   return projectStore.getRoomsByProject(form.projectId)
-    .filter(r => r.status !== 'available' || !reservedRoomIds.includes(r.id) || r.id === form.roomId)
+    .filter(r => (r.status === 'available' && !reservedRoomIds.includes(r.id)) || r.id === form.roomId)
 })
 
 function onFilterChange() {}

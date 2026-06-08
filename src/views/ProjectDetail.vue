@@ -57,7 +57,7 @@
               <el-table-column prop="deliveryStandard" label="交付标准" width="80" />
               <el-table-column label="状态" width="90" align="center">
                 <template #default="{ row }">
-                  <el-tag :type="statusTagType(row.status)" size="small">{{ RoomStatusMap[row.status] }}</el-tag>
+                  <el-tag :type="statusTagType(row.status)" size="small">{{ RoomStatusMap[row.status as RoomStatus] }}</el-tag>
                 </template>
               </el-table-column>
               <el-table-column label="操作" width="200" fixed="right">

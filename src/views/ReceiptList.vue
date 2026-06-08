@@ -43,7 +43,7 @@
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" link type="primary" @click="router.push(`/receipts/${row.id}`)">编辑</el-button>
+            <el-button v-if="authStore.canManageReceipts" size="small" link type="primary" @click="router.push(`/receipts/${row.id}`)">编辑</el-button>
             <el-button size="small" link type="primary" @click="router.push(`/receipts/print/${row.id}`)">打印</el-button>
             <el-button v-if="row.status === 'active' && authStore.canManageReceipts" size="small" link type="danger" @click="handleVoid(row)">作废</el-button>
           </template>

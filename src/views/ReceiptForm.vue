@@ -199,6 +199,11 @@ async function handleSaveAndPrint() {
 }
 
 onMounted(async () => {
+  if (!authStore.canManageReceipts) {
+    ElMessage.error('您没有开具/编辑收据的权限')
+    router.push('/receipts')
+    return
+  }
   form.issuer = authStore.user?.realName || ''
   form.paymentDate = new Date().toISOString().slice(0, 10)
   if (isEdit.value) {
