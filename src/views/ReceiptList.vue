@@ -46,29 +46,57 @@
             <el-button v-if="authStore.canManageReceipts" size="small" link type="primary" @click="router.push(`/receipts/${row.id}`)">编辑</el-button>
             <el-button size="small" link type="primary" @click="router.push(`/receipts/print/${row.id}`)">打印</el-button>
             <el-button v-if="row.status === 'active' && authStore.canManageReceipts" size="small" link type="danger" @click="handleVoid(row)">作废</el-button>
+            <el-button v-if="row.status === 'voided'" size="small" link type="info" @click="showVoidDetail(row)">作废详情</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
+
+    <el-dialog v-model="voidDialogVisible" title="作废收据" width="460px" :close-on-click-modal="false" destroy-on-close>
+      <el-alert type="warning" :closable="false" style="margin-bottom: 16px">
+        <template #title>确定作废收据"{{ voidTargetReceipt?.receiptNumber }}"？作废后不可恢复。</template>
+      </el-alert>
+      <el-form :model="voidForm" label-width="80px">
+        <el-form-item label="作废原因" required>
+          <el-input v-model="voidForm.reason" type="textarea" :rows="3" placeholder="请填写作废原因" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="voidDialogVisible = false">取消</el-button>
+        <el-button type="danger" :loading="voidLoading" @click="confirmVoid">确认作废</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="voidDetailVisible" title="作废记录" width="460px" destroy-on-close>
+      <el-descriptions :column="1" border v-if="voidDetailReceipt">
+        <el-descriptions-item label="收据编号">{{ voidDetailReceipt.receiptNumber }}</el-descriptions-item>
+        <el-descriptions-item label="作废原因">{{ voidDetailReceipt.voidReason || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="作废人">{{ voidDetailReceipt.voidedBy || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="作废时间">{{ voidDetailReceipt.voidedAt || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="打印次数">{{ voidDetailReceipt.printCount || 0 }}</el-descriptions-item>
+      </el-descriptions>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useReceiptStore } from '@/stores/receipt'
 import { useProjectStore } from '@/stores/project'
 import { useAuthStore } from '@/stores/auth'
 import { useLogStore } from '@/stores/log'
-import type { PaymentType, PaymentMethod } from '@/types'
+import { useCustomerStore } from '@/stores/customer'
+import type { PaymentType, PaymentMethod, Receipt } from '@/types'
 import { PaymentTypeMap, PaymentMethodMap } from '@/types'
 import { exportReceiptsToExcel } from '@/utils/export'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 
 const receiptStore = useReceiptStore()
 const projectStore = useProjectStore()
 const authStore = useAuthStore()
 const logStore = useLogStore()
+const customerStore = useCustomerStore()
 const router = useRouter()
 
 const filterProject = ref('')
@@ -90,11 +118,43 @@ const filteredReceipts = computed(() => {
   return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 })
 
-async function handleVoid(r: any) {
-  await ElMessageBox.confirm(`确定作废收据"${r.receiptNumber}"？`, '确认作废', { type: 'warning' })
-  await receiptStore.voidReceipt(r.id)
-  await logStore.addLog({ userId: authStore.user!.id, userName: authStore.user!.realName, userRole: authStore.user!.role, action: 'void_receipt', targetType: 'receipt', targetId: r.id, details: `作废收据 ${r.receiptNumber}`, amountChange: -r.amount })
-  ElMessage.success('收据已作废')
+const voidDialogVisible = ref(false)
+const voidLoading = ref(false)
+const voidTargetReceipt = ref<Receipt | null>(null)
+const voidForm = reactive({ reason: '' })
+
+function handleVoid(r: Receipt) {
+  voidTargetReceipt.value = r
+  voidForm.reason = ''
+  voidDialogVisible.value = true
+}
+
+async function confirmVoid() {
+  if (!voidForm.reason.trim()) {
+    ElMessage.warning('请填写作废原因')
+    return
+  }
+  voidLoading.value = true
+  try {
+    const r = voidTargetReceipt.value!
+    if (r.paymentPlanId && r.amount > 0) {
+      await customerStore.subtractPaidAmount(r.paymentPlanId, r.amount)
+    }
+    await receiptStore.voidReceipt(r.id, voidForm.reason, authStore.user!.realName)
+    await logStore.addLog({ userId: authStore.user!.id, userName: authStore.user!.realName, userRole: authStore.user!.role, action: 'void_receipt', targetType: 'receipt', targetId: r.id, details: `作废收据 ${r.receiptNumber}，原因：${voidForm.reason}`, amountChange: -r.amount })
+    voidDialogVisible.value = false
+    ElMessage.success('收据已作废')
+  } finally {
+    voidLoading.value = false
+  }
+}
+
+const voidDetailVisible = ref(false)
+const voidDetailReceipt = ref<Receipt | null>(null)
+
+function showVoidDetail(r: Receipt) {
+  voidDetailReceipt.value = r
+  voidDetailVisible.value = true
 }
 
 function handleExport() {

@@ -44,6 +44,29 @@
           <el-tag v-if="room" :type="statusType" size="small">{{ RoomStatusMap[room.status] }}</el-tag>
         </el-descriptions-item>
       </el-descriptions>
+      <div v-if="paymentPlans.length > 0" style="margin-bottom: 16px">
+        <div style="font-weight: 600; margin-bottom: 8px">付款计划进度</div>
+        <el-table :data="paymentPlans" size="small" border>
+          <el-table-column prop="name" label="款项" width="120" />
+          <el-table-column prop="amount" label="应收金额" width="120" align="right">
+            <template #default="{ row }">¥{{ row.amount.toLocaleString() }}</template>
+          </el-table-column>
+          <el-table-column label="已收金额" width="120" align="right">
+            <template #default="{ row }">¥{{ (row.paidAmount || 0).toLocaleString() }}</template>
+          </el-table-column>
+          <el-table-column label="收款进度" width="180">
+            <template #default="{ row }">
+              <el-progress :percentage="row.amount > 0 ? Math.round((row.paidAmount || 0) / row.amount * 100) : 0" :stroke-width="16" :text-inside="true" :status="planProgressStatus(row)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="90" align="center">
+            <template #default="{ row }">
+              <el-tag :type="planTagType(row)" size="small">{{ planStatusLabel(row) }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="dueDate" label="截止日期" width="110" />
+        </el-table>
+      </div>
       <el-table :data="activeReceipts" size="small" border stripe>
         <el-table-column prop="receiptNumber" label="收据编号" width="180" />
         <el-table-column prop="paymentReason" label="收款事由" min-width="140" show-overflow-tooltip />
@@ -75,7 +98,7 @@ import { useProjectStore } from '@/stores/project'
 import { useCustomerStore } from '@/stores/customer'
 import { useReceiptStore } from '@/stores/receipt'
 import { useAuthStore } from '@/stores/auth'
-import type { RoomStatus, PaymentType, PaymentMethod } from '@/types'
+import type { RoomStatus, PaymentType, PaymentMethod, PaymentPlan } from '@/types'
 import { RoomStatusMap, PaymentTypeMap, PaymentMethodMap } from '@/types'
 import { ElMessage } from 'element-plus'
 import html2canvas from 'html2canvas'
@@ -92,6 +115,7 @@ const roomId = route.params.roomId as string
 const room = computed(() => projectStore.rooms.find(r => r.id === roomId))
 const customer = computed(() => customerStore.customers.find(c => c.roomId === roomId))
 const activeReceipts = computed(() => receiptStore.getActiveReceiptsByRoom(roomId))
+const paymentPlans = computed(() => customer.value ? customerStore.getPaymentPlansByCustomer(customer.value.id) : [])
 
 const totalReceivable = computed(() => room.value?.totalPrice || 0)
 const totalReceived = computed(() => activeReceipts.value.reduce((s, r) => s + r.amount, 0))
@@ -102,6 +126,34 @@ const statusType = computed(() => {
   const m: Record<RoomStatus, string> = { available: 'info', reserved: 'warning', contracted: '', settled: 'success' }
   return m[room.value.status]
 })
+
+function getPlanStatus(plan: PaymentPlan) {
+  const paid = plan.paidAmount || 0
+  if (paid <= 0) return 'unpaid'
+  if (paid >= plan.amount) return 'paid'
+  return 'partial'
+}
+
+function planProgressStatus(plan: PaymentPlan): '' | 'success' | 'warning' | 'exception' {
+  const s = getPlanStatus(plan)
+  if (s === 'paid') return 'success'
+  if (s === 'partial') return 'warning'
+  return 'exception'
+}
+
+function planTagType(plan: PaymentPlan): string {
+  const s = getPlanStatus(plan)
+  if (s === 'paid') return 'success'
+  if (s === 'partial') return 'warning'
+  return 'info'
+}
+
+function planStatusLabel(plan: PaymentPlan): string {
+  const s = getPlanStatus(plan)
+  if (s === 'paid') return '已收'
+  if (s === 'partial') return '部分收'
+  return '未收'
+}
 
 function goNewReceipt() { router.push('/receipts/new') }
 

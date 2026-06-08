@@ -65,10 +65,12 @@ export async function initDefaultUsers() {
   const db = await getDB()
   const count = await db.count('users')
   if (count === 0) {
+    const { hashPassword } = await import('@/utils/auth')
+    const hashedPw = await hashPassword('123456')
     const defaultUsers: User[] = [
-      { id: 'u1', username: 'manager', password: '123456', realName: '张经理', role: 'manager' },
-      { id: 'u2', username: 'finance', password: '123456', realName: '李财务', role: 'finance' },
-      { id: 'u3', username: 'sales1', password: '123456', realName: '王销售', role: 'sales' }
+      { id: 'u1', username: 'manager', password: hashedPw, realName: '张经理', role: 'manager', disabled: false },
+      { id: 'u2', username: 'finance', password: hashedPw, realName: '李财务', role: 'finance', disabled: false },
+      { id: 'u3', username: 'sales1', password: hashedPw, realName: '王销售', role: 'sales', disabled: false }
     ]
     const tx = db.transaction('users', 'readwrite')
     for (const u of defaultUsers) {
@@ -122,6 +124,71 @@ export async function dbGetOneByIndex<T>(storeName: string, indexName: string, v
 export async function dbCountByIndex(storeName: string, indexName: string, value: string): Promise<number> {
   const db = await getDB()
   return db.countFromIndex(storeName, indexName, value)
+}
+
+export const STORE_NAMES = [
+  'projects', 'buildings', 'units', 'rooms', 'customers',
+  'paymentPlans', 'receipts', 'users', 'operationLogs'
+] as const
+
+export type StoreName = typeof STORE_NAMES[number]
+
+export interface BackupData {
+  version: number
+  exportedAt: string
+  stores: Record<StoreName, any[]>
+}
+
+export async function exportAllDataAsJSON(): Promise<BackupData> {
+  const db = await getDB()
+  const stores: Record<string, any[]> = {}
+  for (const name of STORE_NAMES) {
+    stores[name] = await db.getAll(name)
+  }
+  return {
+    version: DB_VERSION,
+    exportedAt: new Date().toISOString(),
+    stores: stores as Record<StoreName, any[]>
+  }
+}
+
+export function validateBackupData(data: any): { valid: boolean; errors: string[] } {
+  const errors: string[] = []
+  if (!data || typeof data !== 'object') {
+    errors.push('数据格式无效，不是有效的JSON对象')
+    return { valid: false, errors }
+  }
+  if (!data.stores || typeof data.stores !== 'object') {
+    errors.push('缺少 stores 字段')
+    return { valid: false, errors }
+  }
+  for (const name of STORE_NAMES) {
+    if (!Array.isArray(data.stores[name])) {
+      errors.push(`stores.${name} 缺失或不是数组`)
+    }
+  }
+  return { valid: errors.length === 0, errors }
+}
+
+export async function importAllDataFromJSON(data: BackupData): Promise<void> {
+  const db = await getDB()
+  const allStoreNames = [...STORE_NAMES]
+  const tx = db.transaction(allStoreNames, 'readwrite')
+  try {
+    for (const name of STORE_NAMES) {
+      await tx.objectStore(name).clear()
+    }
+    for (const name of STORE_NAMES) {
+      const records = data.stores[name] || []
+      for (const record of records) {
+        await tx.objectStore(name).put(record)
+      }
+    }
+    await tx.done
+  } catch (e) {
+    try { await tx.abort() } catch {}
+    throw e
+  }
 }
 
 export { generateId }

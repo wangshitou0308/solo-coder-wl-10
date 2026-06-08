@@ -46,12 +46,12 @@ async function handleLogin() {
   await formRef.value?.validate()
   loading.value = true
   try {
-    const ok = await authStore.login(form.username, form.password)
-    if (ok) {
+    const result = await authStore.login(form.username, form.password)
+    if (result.ok) {
       ElMessage.success('登录成功')
       router.push('/dashboard')
     } else {
-      ElMessage.error('用户名或密码错误')
+      ElMessage.error(result.msg)
     }
   } finally {
     loading.value = false

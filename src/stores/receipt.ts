@@ -48,8 +48,16 @@ export const useReceiptStore = defineStore('receipt', () => {
     Object.assign(r, updated)
   }
 
-  async function voidReceipt(id: string) {
-    await updateReceipt(id, { status: 'voided' as ReceiptStatus })
+  async function voidReceipt(id: string, voidReason: string, voidedBy: string) {
+    const now = dayjs().format('YYYY-MM-DD HH:mm:ss')
+    await updateReceipt(id, { status: 'voided' as ReceiptStatus, voidReason, voidedBy, voidedAt: now })
+  }
+
+  async function incrementPrintCount(id: string) {
+    const r = receipts.value.find(x => x.id === id)
+    if (!r) return
+    const count = (r.printCount || 0) + 1
+    await updateReceipt(id, { printCount: count })
   }
 
   async function genReceiptNumber(abbreviation: string, date: string): Promise<string> {
@@ -60,6 +68,6 @@ export const useReceiptStore = defineStore('receipt', () => {
     receipts, loading,
     getReceiptById, getReceiptsByRoom, getReceiptsByProject, getActiveReceiptsByRoom, getActiveReceipts,
     loadReceipts, loadReceiptsByProject, loadReceiptsByRoom,
-    addReceipt, updateReceipt, voidReceipt, genReceiptNumber
+    addReceipt, updateReceipt, voidReceipt, incrementPrintCount, genReceiptNumber
   }
 })

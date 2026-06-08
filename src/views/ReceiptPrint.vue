@@ -35,12 +35,26 @@
           <td class="label">状态</td>
           <td class="value">{{ receipt?.status === 'active' ? '有效' : '已作废' }}</td>
         </tr>
+        <tr v-if="receipt?.status === 'voided'">
+          <td class="label">作废原因</td>
+          <td class="value" colspan="3" style="color: #c00">{{ receipt?.voidReason }}</td>
+        </tr>
+        <tr v-if="receipt?.status === 'voided'">
+          <td class="label">作废人</td>
+          <td class="value">{{ receipt?.voidedBy }}</td>
+          <td class="label">作废时间</td>
+          <td class="value">{{ receipt?.voidedAt }}</td>
+        </tr>
       </table>
       <div class="receipt-footer">
         <div class="stamp-area">收款单位盖章</div>
         <div class="sign-area">收款人签字：____________</div>
       </div>
       <div class="receipt-note">本收据一式两联，此为第一联（客户联）</div>
+      <div class="receipt-meta" style="margin-top: 8px; font-size: 11px; color: #bbb">
+        <span>打印次数：{{ receipt?.printCount || 0 }}</span>
+        <span v-if="receipt?.paymentPlanId">关联付款计划</span>
+      </div>
     </div>
   </div>
 </template>
@@ -60,6 +74,9 @@ const receiptId = route.params.id as string
 const receipt = computed(() => receiptStore.getReceiptById(receiptId))
 
 function handlePrint() {
+  if (receipt.value) {
+    receiptStore.incrementPrintCount(receipt.value.id)
+  }
   window.print()
 }
 

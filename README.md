@@ -1,5 +1,107 @@
-# Vue 3 + TypeScript + Vite
+# 房地产销售收款与客户台账管理系统
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Real Estate Sales Payment & Customer Ledger Management System
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## 系统简介
+
+本系统面向房地产销售场景，提供楼盘管理、房源管理、客户管理、收据开具与台账、付款计划跟踪、催款提醒、销售报表等一体化功能，帮助销售团队高效管理收款与客户信息。
+
+## 功能清单
+
+| 模块 | 功能说明 |
+|------|----------|
+| 数据看板 | 项目/房源/客户/收款统计总览，去化率、收款方式占比、月度趋势图表 |
+| 楼盘管理 | 楼盘增删改查，楼栋/单元/房源层级管理，批量生成房源，楼盘表可视化 |
+| 客户管理 | 客户信息录入，关联房源与楼盘，付款节点计划管理 |
+| 收据管理 | 开具/编辑/作废收据，自动编号，金额大写转换，打印与PDF导出 |
+| 收款台账 | 按房源查看收款汇总、收据明细，应收/已收/剩余金额统计 |
+| 催款提醒 | 即将到期/已逾期款项自动提醒 |
+| 销售报表 | 日/月/自定义区间收款统计，Excel导出 |
+| 操作日志 | 关键操作审计追踪 |
+| 用户管理 | 多角色账号管理，密码修改，账号启用/禁用 |
+| 数据备份 | 全量数据导出JSON/Excel，JSON导入恢复 |
+
+## 默认账号
+
+| 用户名 | 密码 | 角色 | 姓名 |
+|--------|------|------|------|
+| manager | 123456 | 经理 | 张经理 |
+| finance | 123456 | 财务 | 李财务 |
+| sales1 | 123456 | 销售顾问 | 王销售 |
+
+> 首次登录后请及时修改默认密码。
+
+## 本地启动
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+
+# 构建生产版本
+npm run build
+
+# 预览生产构建
+npm run preview
+```
+
+## 构建部署
+
+### 方式一：Docker 部署
+
+```bash
+# 构建镜像
+docker build -t realestate-mgmt .
+
+# 运行容器
+docker run -d -p 80:80 realestate-mgmt
+```
+
+### 方式二：Docker Compose
+
+```bash
+docker-compose up -d
+```
+
+### 方式三：手动部署
+
+```bash
+# 构建
+npm run build
+
+# 将 dist 目录部署到任意静态文件服务器（Nginx / Caddy / 等）
+# 参考项目中的 nginx.conf 配置
+```
+
+## ⚠️ 数据存储说明
+
+**本系统所有数据存储在浏览器 IndexedDB 中，属于本地存储，不会上传到任何服务器。**
+
+请注意以下重要事项：
+
+- **换电脑或更换浏览器**：数据不会自动迁移，新环境中将看到空白系统
+- **清除浏览器缓存/数据**：IndexedDB 数据将被一并清除，无法恢复
+- **浏览器隐私模式**：关闭隐私窗口后数据即消失
+
+### 📦 强烈建议定期使用备份功能
+
+系统提供了完善的数据备份与恢复机制：
+
+1. **导出备份**：点击右上角用户菜单 → 「导出全部数据」，系统会将所有数据导出为 JSON 文件，请妥善保存
+2. **导入恢复**：点击右上角用户菜单 → 「导入数据恢复」，选择之前导出的 JSON 文件即可恢复所有数据
+3. **建议频率**：每天工作结束后导出一次备份文件，文件名自动包含日期，便于版本管理
+
+> **备份文件是您数据的唯一保障，请务必养成定期备份的习惯！**
+
+## 技术栈
+
+- Vue 3 + TypeScript
+- Vite
+- Element Plus
+- Pinia（状态管理）
+- IndexedDB（via idb）
+- ECharts（图表）
+- html2canvas + jsPDF（PDF导出）
+- SheetJS/xlsx（Excel导出）

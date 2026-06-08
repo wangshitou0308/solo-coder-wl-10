@@ -91,13 +91,17 @@ export interface Customer {
   updatedAt: string
 }
 
+export type PaymentPlanStatus = 'unpaid' | 'partial' | 'paid'
+
 export interface PaymentPlan {
   id: string
   customerId: string
   name: string
   amount: number
+  paidAmount: number
   dueDate: string
   paid: boolean
+  status?: PaymentPlanStatus
 }
 
 export interface Receipt {
@@ -106,6 +110,7 @@ export interface Receipt {
   projectId: string
   roomId: string
   customerId: string
+  paymentPlanId?: string
   paymentUnit: string
   paymentReason: string
   paymentType: PaymentType
@@ -115,6 +120,10 @@ export interface Receipt {
   paymentDate: string
   issuer: string
   status: ReceiptStatus
+  voidReason?: string
+  voidedBy?: string
+  voidedAt?: string
+  printCount?: number
   createdAt: string
   updatedAt: string
 }
@@ -125,6 +134,7 @@ export interface User {
   password: string
   realName: string
   role: UserRole
+  disabled?: boolean
 }
 
 export interface OperationLog {

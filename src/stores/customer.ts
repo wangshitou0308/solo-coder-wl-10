@@ -1,8 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Customer, PaymentPlan } from '@/types'
+import type { Customer, PaymentPlan, PaymentPlanStatus } from '@/types'
 import { dbGetAll, dbAdd, dbPut, dbDelete, dbGetByIndex, generateId } from '@/db'
 import dayjs from 'dayjs'
+
+export function computePlanStatus(plan: PaymentPlan): PaymentPlanStatus {
+  const paid = plan.paidAmount || 0
+  if (paid <= 0) return 'unpaid'
+  if (paid >= plan.amount) return 'paid'
+  return 'partial'
+}
 
 export const useCustomerStore = defineStore('customer', () => {
   const customers = ref<Customer[]>([])
@@ -53,7 +60,8 @@ export const useCustomerStore = defineStore('customer', () => {
   }
 
   async function addPaymentPlan(data: Omit<PaymentPlan, 'id'>): Promise<PaymentPlan> {
-    const p: PaymentPlan = { ...data, id: generateId() }
+    const p: PaymentPlan = { ...data, id: generateId(), paidAmount: data.paidAmount || 0, status: computePlanStatus({ ...data, id: generateId(), paidAmount: data.paidAmount || 0 }) }
+    p.status = computePlanStatus(p)
     await dbAdd('paymentPlans', p)
     paymentPlans.value.push(p)
     return p
@@ -63,6 +71,7 @@ export const useCustomerStore = defineStore('customer', () => {
     const p = paymentPlans.value.find(x => x.id === id)
     if (!p) return
     const updated = { ...p, ...data }
+    updated.status = computePlanStatus(updated)
     await dbPut('paymentPlans', updated)
     Object.assign(p, updated)
   }
@@ -72,8 +81,26 @@ export const useCustomerStore = defineStore('customer', () => {
     paymentPlans.value = paymentPlans.value.filter(p => p.id !== id)
   }
 
+  async function addPaidAmount(planId: string, amount: number) {
+    const p = paymentPlans.value.find(x => x.id === planId)
+    if (!p) return
+    const newPaid = Math.min((p.paidAmount || 0) + amount, p.amount)
+    const status = computePlanStatus({ ...p, paidAmount: newPaid })
+    await updatePaymentPlan(planId, { paidAmount: newPaid, paid: status === 'paid', status })
+  }
+
+  async function subtractPaidAmount(planId: string, amount: number) {
+    const p = paymentPlans.value.find(x => x.id === planId)
+    if (!p) return
+    const newPaid = Math.max((p.paidAmount || 0) - amount, 0)
+    const status = computePlanStatus({ ...p, paidAmount: newPaid })
+    await updatePaymentPlan(planId, { paidAmount: newPaid, paid: status === 'paid', status })
+  }
+
   async function markPlanPaid(id: string) {
-    await updatePaymentPlan(id, { paid: true })
+    const p = paymentPlans.value.find(x => x.id === id)
+    if (!p) return
+    await updatePaymentPlan(id, { paid: true, paidAmount: p.amount, status: 'paid' })
   }
 
   async function loadPaymentPlans(customerId: string) {
@@ -84,6 +111,6 @@ export const useCustomerStore = defineStore('customer', () => {
     customers, paymentPlans, loading,
     getCustomerById, getCustomerByRoom, getCustomersByProject, getPaymentPlansByCustomer,
     loadCustomers, loadCustomersByProject, addCustomer, updateCustomer, deleteCustomer,
-    addPaymentPlan, updatePaymentPlan, deletePaymentPlan, markPlanPaid, loadPaymentPlans
+    addPaymentPlan, updatePaymentPlan, deletePaymentPlan, addPaidAmount, subtractPaidAmount, markPlanPaid, loadPaymentPlans
   }
 })

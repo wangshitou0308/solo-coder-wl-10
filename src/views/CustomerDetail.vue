@@ -36,15 +36,23 @@
             <el-table-column prop="amount" label="金额" width="100" align="right">
               <template #default="{ row }">{{ row.amount.toLocaleString() }}</template>
             </el-table-column>
-            <el-table-column prop="dueDate" label="截止日期" width="110" />
-            <el-table-column label="状态" width="70" align="center">
+            <el-table-column label="已收" width="100" align="right">
+              <template #default="{ row }">{{ (row.paidAmount || 0).toLocaleString() }}</template>
+            </el-table-column>
+            <el-table-column label="收款进度" width="140">
               <template #default="{ row }">
-                <el-tag :type="row.paid ? 'success' : 'warning'" size="small">{{ row.paid ? '已付' : '待付' }}</el-tag>
+                <el-progress :percentage="row.amount > 0 ? Math.round((row.paidAmount || 0) / row.amount * 100) : 0" :stroke-width="14" :text-inside="true" :status="planStatusType(row)" />
+              </template>
+            </el-table-column>
+            <el-table-column prop="dueDate" label="截止日期" width="110" />
+            <el-table-column label="状态" width="80" align="center">
+              <template #default="{ row }">
+                <el-tag :type="planTagType(row)" size="small">{{ planStatusLabel(row) }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column label="操作" width="100">
               <template #default="{ row }">
-                <el-button v-if="!row.paid" size="small" link type="success" @click="markPaid(row)">确认</el-button>
+                <el-button v-if="(row.paidAmount || 0) < row.amount" size="small" link type="success" @click="markPaid(row)">确认</el-button>
                 <el-button size="small" link type="danger" @click="deletePlan(row)">删除</el-button>
               </template>
             </el-table-column>
@@ -72,7 +80,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCustomerStore } from '@/stores/customer'
 import { useProjectStore } from '@/stores/project'
-import type { RoomStatus, PaymentPlan } from '@/types'
+import type { RoomStatus, PaymentPlan, PaymentPlanStatus } from '@/types'
 import { RoomStatusMap } from '@/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -96,13 +104,41 @@ function statusTagType(s: RoomStatus): string {
   return m[s]
 }
 
+function getPlanStatus(plan: PaymentPlan): PaymentPlanStatus {
+  const paid = plan.paidAmount || 0
+  if (paid <= 0) return 'unpaid'
+  if (paid >= plan.amount) return 'paid'
+  return 'partial'
+}
+
+function planStatusType(plan: PaymentPlan): '' | 'success' | 'warning' | 'exception' {
+  const s = getPlanStatus(plan)
+  if (s === 'paid') return 'success'
+  if (s === 'partial') return 'warning'
+  return 'exception'
+}
+
+function planTagType(plan: PaymentPlan): string {
+  const s = getPlanStatus(plan)
+  if (s === 'paid') return 'success'
+  if (s === 'partial') return 'warning'
+  return 'info'
+}
+
+function planStatusLabel(plan: PaymentPlan): string {
+  const s = getPlanStatus(plan)
+  if (s === 'paid') return '已收'
+  if (s === 'partial') return '部分收'
+  return '未收'
+}
+
 const planDialogVisible = ref(false)
 const planForm = reactive({ name: '', amount: 0, dueDate: '' })
 
 function showAddPlanDialog() { Object.assign(planForm, { name: '', amount: 0, dueDate: '' }); planDialogVisible.value = true }
 
 async function addPlan() {
-  await customerStore.addPaymentPlan({ customerId, name: planForm.name, amount: planForm.amount, dueDate: planForm.dueDate, paid: false })
+  await customerStore.addPaymentPlan({ customerId, name: planForm.name, amount: planForm.amount, paidAmount: 0, dueDate: planForm.dueDate, paid: false })
   planDialogVisible.value = false
   ElMessage.success('已添加')
 }

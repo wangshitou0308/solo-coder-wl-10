@@ -195,7 +195,7 @@ async function handleSave() {
       const oldPlans = customerStore.getPaymentPlansByCustomer(editingId.value)
       for (const p of oldPlans) await customerStore.deletePaymentPlan(p.id)
       for (const p of form.plans) {
-        if (p.name && p.amount > 0) await customerStore.addPaymentPlan({ customerId: editingId.value, name: p.name, amount: p.amount, dueDate: p.dueDate, paid: false })
+        if (p.name && p.amount > 0) await customerStore.addPaymentPlan({ customerId: editingId.value, name: p.name, amount: p.amount, paidAmount: 0, dueDate: p.dueDate, paid: false })
       }
       await logStore.addLog({ userId: authStore.user!.id, userName: authStore.user!.realName, userRole: authStore.user!.role, action: 'modify_customer', targetType: 'customer', targetId: editingId.value, details: `修改客户 ${form.name}` })
     } else {
@@ -205,7 +205,7 @@ async function handleSave() {
         contractDate: form.contractDate, salesConsultant: form.salesConsultant
       })
       for (const p of form.plans) {
-        if (p.name && p.amount > 0) await customerStore.addPaymentPlan({ customerId: c.id, name: p.name, amount: p.amount, dueDate: p.dueDate, paid: false })
+        if (p.name && p.amount > 0) await customerStore.addPaymentPlan({ customerId: c.id, name: p.name, amount: p.amount, paidAmount: 0, dueDate: p.dueDate, paid: false })
       }
       await projectStore.updateRoomStatus(form.roomId, 'reserved')
       await logStore.addLog({ userId: authStore.user!.id, userName: authStore.user!.realName, userRole: authStore.user!.role, action: 'create_customer', targetType: 'customer', targetId: c.id, details: `新增客户 ${form.name}` })

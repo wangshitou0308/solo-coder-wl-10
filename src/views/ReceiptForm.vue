@@ -30,9 +30,20 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
+            <el-form-item label="关联付款项">
+              <el-select v-model="form.paymentPlanId" style="width: 100%" clearable placeholder="选择对应的付款计划项" :disabled="isEdit">
+                <el-option v-for="p in customerPlans" :key="p.id" :label="`${p.name}（¥${p.amount.toLocaleString()}）`" :value="p.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
             <el-form-item label="付款单位">
               <el-input v-model="form.paymentUnit" placeholder="自动带入客户姓名" />
             </el-form-item>
+          </el-col>
+          <el-col :span="12">
           </el-col>
         </el-row>
         <el-row :gutter="20">
@@ -122,7 +133,7 @@ const saving = ref(false)
 const formRef = ref()
 
 const form = reactive({
-  projectId: '', roomId: '', customerId: '', paymentUnit: '', paymentReason: '',
+  projectId: '', roomId: '', customerId: '', paymentPlanId: '', paymentUnit: '', paymentReason: '',
   paymentType: 'deposit' as PaymentType, paymentMethod: 'transfer' as PaymentMethod,
   amount: 0, amountInWords: '', paymentDate: '', issuer: '', receiptNumber: ''
 })
@@ -139,11 +150,13 @@ const rules = {
 
 const projectRooms = computed(() => projectStore.getRoomsByProject(form.projectId))
 const roomCustomers = computed(() => customerStore.customers.filter(c => c.roomId === form.roomId))
+const customerPlans = computed(() => customerStore.getPaymentPlansByCustomer(form.customerId))
 
-function onProjectChange() { form.roomId = ''; form.customerId = '' }
-function onRoomChange() { form.customerId = '' }
+function onProjectChange() { form.roomId = ''; form.customerId = ''; form.paymentPlanId = '' }
+function onRoomChange() { form.customerId = ''; form.paymentPlanId = '' }
 
 function onCustomerChange() {
+  form.paymentPlanId = ''
   const c = customerStore.getCustomerById(form.customerId)
   if (c) form.paymentUnit = c.name
 }
@@ -174,12 +187,16 @@ async function handleSave() {
       const receiptNum = await receiptStore.genReceiptNumber(project?.abbreviation || 'XX', form.paymentDate)
       const receipt = await receiptStore.addReceipt({
         receiptNumber: receiptNum, projectId: form.projectId, roomId: form.roomId,
-        customerId: form.customerId, paymentUnit: form.paymentUnit, paymentReason: form.paymentReason,
+        customerId: form.customerId, paymentPlanId: form.paymentPlanId || undefined,
+        paymentUnit: form.paymentUnit, paymentReason: form.paymentReason,
         paymentType: form.paymentType, paymentMethod: form.paymentMethod,
         amount: form.amount, amountInWords: form.amountInWords,
         paymentDate: form.paymentDate, issuer: form.issuer || authStore.user?.realName || '',
         status: 'active'
       })
+      if (form.paymentPlanId && form.amount > 0) {
+        await customerStore.addPaidAmount(form.paymentPlanId, form.amount)
+      }
       await logStore.addLog({
         userId: authStore.user!.id, userName: authStore.user!.realName, userRole: authStore.user!.role,
         action: 'create_receipt', targetType: 'receipt', targetId: receipt.id,
@@ -211,6 +228,7 @@ onMounted(async () => {
     if (r) {
       Object.assign(form, {
         projectId: r.projectId, roomId: r.roomId, customerId: r.customerId,
+        paymentPlanId: r.paymentPlanId || '',
         paymentUnit: r.paymentUnit, paymentReason: r.paymentReason,
         paymentType: r.paymentType, paymentMethod: r.paymentMethod,
         amount: r.amount, amountInWords: r.amountInWords,
